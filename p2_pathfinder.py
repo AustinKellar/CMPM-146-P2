@@ -1,6 +1,5 @@
 from queue import PriorityQueue
 from math import inf, sqrt
-import heapq
 
 def matching_box(point, mesh):
     x, y = point
@@ -58,8 +57,8 @@ def find_path (source_point, destination_point, mesh):
     source_box = matching_box(source_point, mesh)
     destination_box = matching_box(destination_point, mesh)
 
-    queue = []
-    heapq.heappush(queue, (source_box, 0))
+    queue = PriorityQueue()
+    queue.put(source_box, 0)
     boxes = {}
     boxes[source_box] = None
     distances = {}
@@ -69,8 +68,8 @@ def find_path (source_point, destination_point, mesh):
 
     distances[source_box] = 0
 
-    while not queue:
-        current = heapq.heappop(queue)
+    while not queue.empty():
+        current = queue.get()
         if current == destination_box:
             break
         for next in mesh['adj'][current]:
@@ -78,7 +77,7 @@ def find_path (source_point, destination_point, mesh):
             if next not in distances or new_distance < distances[next]:
                 distances[next] = new_distance
                 priority = new_distance + heuristic(next, destination_box)
-                heapq.heappush(queue, (next, priority))
+                queue.put(next, priority)
                 boxes[next] = current
 
     path = assemble_path(source_box, destination_box, boxes)
