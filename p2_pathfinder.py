@@ -3,12 +3,12 @@ from math import inf
 def matching_box(point, mesh):
     x, y = point
     for box in mesh['boxes']:
-        y1, y2, x1, x2 = box
+        x1, x2, y1, y2 = box
         if y <= y2 and y >= y1 and x >= x1 and x <= x2:
             return box
 
 def midpoint(box):
-    y1, y2, x1, x2 = box
+    x1, x2, y1, y2 = box
     return ((x1+x2)/2, (y1+y2)/2)
 
 def assemble_path(source_box, destination_box, boxes):
@@ -44,4 +44,4 @@ def find_path (source_point, destination_point, mesh):
     path = assemble_path(source_box, destination_box, boxes)
     print(path)
 
-    return path, mesh['adj'].keys()
+    return path, boxes.keys()
