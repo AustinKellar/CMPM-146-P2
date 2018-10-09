@@ -1,5 +1,6 @@
 from queue import PriorityQueue
 from math import inf, sqrt
+import heapq
 
 def matching_box(point, mesh):
     x, y = point
@@ -36,16 +37,29 @@ def assemble_path(source_box, destination_box, boxes):
         current_box = boxes.get(current_box, None)
     return path
 
-def find_path (source_point, destination_point, mesh):
-    """    Searches for a path from source_point to destination_point through the mesh    Args:        source_point: starting point of the pathfinder        destination_point: the ultimate goal the pathfinder must reach        mesh: pathway constraints the path adheres to
-    Returns:
-        A path (list of points) from source_point to destination_point if exists        A list of boxes explored by the algorithm    """
+def find_path (source_point, destination_point, mesh):
+
+    """
+    Searches for a path from source_point to destination_point through the mesh
+
+    Args:
+        source_point: starting point of the pathfinder
+        destination_point: the ultimate goal the pathfinder must reach
+        mesh: pathway constraints the path adheres to
+
+    Returns:
+
+        A path (list of points) from source_point to destination_point if exists
+        A list of boxes explored by the algorithm
+    """
+
+
 
     source_box = matching_box(source_point, mesh)
     destination_box = matching_box(destination_point, mesh)
 
-    queue = PriorityQueue()
-    queue.put(source_box, 0)
+    queue = []
+    heapq.heappush(queue, (source_box, 0))
     boxes = {}
     boxes[source_box] = None
     distances = {}
@@ -55,8 +69,8 @@ def find_path (source_point, destination_point, mesh):
 
     distances[source_box] = 0
 
-    while not queue.empty():
-        current = queue.get()
+    while not queue:
+        current = heapq.heappop(queue)
         if current == destination_box:
             break
         for next in mesh['adj'][current]:
@@ -64,9 +78,10 @@ def find_path (source_point, destination_point, mesh):
             if next not in distances or new_distance < distances[next]:
                 distances[next] = new_distance
                 priority = new_distance + heuristic(next, destination_box)
-                queue.put(next, priority)
+                heapq.heappush(queue, (next, priority))
                 boxes[next] = current
 
     path = assemble_path(source_box, destination_box, boxes)
 
-    return path, boxes.keys()
+    return path, boxes.keys()
+
