@@ -58,18 +58,17 @@ def find_path (source_point, destination_point, mesh):
     destination_box = matching_box(destination_point, mesh)
 
     queue = PriorityQueue()
-    queue.put(source_box, 0)
+    queue.put((0, source_box))
     boxes = {}
     boxes[source_box] = None
     distances = {}
 
-    for box in mesh['boxes']:
-        distances[box] = inf
 
     distances[source_box] = 0
 
     while not queue.empty():
-        current = queue.get()
+        current = (queue.get())[1]
+        print("CURRENT: " + str(current))
         if current == destination_box:
             break
         for next in mesh['adj'][current]:
@@ -77,7 +76,7 @@ def find_path (source_point, destination_point, mesh):
             if next not in distances or new_distance < distances[next]:
                 distances[next] = new_distance
                 priority = new_distance + heuristic(next, destination_box)
-                queue.put(next, priority)
+                queue.put((priority, next))
                 boxes[next] = current
 
     path = assemble_path(source_box, destination_box, boxes)
