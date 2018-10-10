@@ -24,19 +24,15 @@ def distance(point1, point2):
 
     return sqrt(((x2 - x1)**2) + ((y2 - y1)**2))
 
-def assemble_path(source_point, destination_point, parents):
+def assemble_path(source_box, destination_box, detail_points, prev):
     path = []
-    current = destination_point
+    curr_box = destination_box
 
-    while current != source_point:
-        path.append(((current), (parents[current])))
-        current = parents[current]
+    while curr_box != source_box:
+        path.append((detail_points[curr_box], detail_points[prev[curr_box]]))
+        curr_box = prev[curr_box]
 
     return path
-
-def closest(point, box):
-
-    return midpoint(box)
 
 def find_path (source_point, destination_point, mesh):
 
@@ -64,39 +60,28 @@ def find_path (source_point, destination_point, mesh):
 
     queue = PriorityQueue()
     queue.put((0, source_box))
-    boxes = {}
-    boxes[source_box] = None
-    distances = { source_box: 0 }
-    detail_points = { source_box: source_point }
-    parents = { source_point: None }
 
+    dist = { source_box: 0 }
+    prev = { source_point: None }
+
+    detail_points = { source_box: source_point, destination_box: destination_point }
 
     while not queue.empty():
-        current = (queue.get())[1]
-        if current == destination_box:
+        _,curr_box = queue.get()
+        if curr_box == destination_box:
             break
-        for next in mesh['adj'][current]:
-            if next == destination_box:
-                detail_point = destination_point
-            else:
-                detail_point = closest(detail_points[current], next)
+        for next_box in mesh['adj'][curr_box]:
+            if next_box not in detail_points:
+                detail_points[next_box] = midpoint(next_box)
 
-            detail_points[next] = detail_point
+            new_dist = dist[curr_box] + distance(detail_points[curr_box], detail_points[next_box])
 
-            new_distance = distances[current] + distance(detail_points[current], detail_point)
+            if next_box not in dist or new_dist < dist[next_box]:
+                dist[next_box] = new_dist
+                priority = new_dist + heuristic(detail_points[next_box], destination_point)
+                queue.put((priority, next_box))
+                prev[next_box] = curr_box
 
-            if next not in distances or new_distance < distances[next]:
-                distances[next] = new_distance
-                priority = new_distance + heuristic(detail_point, destination_point)
-                queue.put((priority, next))
+    path = assemble_path(source_box, destination_box, detail_points, prev)
 
-                if current == source_box:
-                    parents[detail_point] = source_point
-                else:
-                    parents[detail_point] = detail_points[current]
-
-                boxes[next] = current
-
-    path = assemble_path(source_point, destination_point, parents)
-
-    return path, boxes.keys()
+    return path, dist.keys()
