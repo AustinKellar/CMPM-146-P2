@@ -68,7 +68,6 @@ def find_path (source_point, destination_point, mesh):
 
     while not queue.empty():
         current = (queue.get())[1]
-        print("CURRENT: " + str(current))
         if current == destination_box:
             break
         for next in mesh['adj'][current]:
@@ -82,4 +81,3 @@ def find_path (source_point, destination_point, mesh):
     path = assemble_path(source_box, destination_box, boxes)
 
     return path, boxes.keys()
-
