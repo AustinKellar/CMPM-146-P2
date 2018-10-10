@@ -78,7 +78,7 @@ def find_path (source_point, destination_point, mesh):
 
             if next_box not in dist or new_dist < dist[next_box]:
                 dist[next_box] = new_dist
-                priority = new_dist + heuristic(detail_points[next_box], destination_point)
+                priority = new_dist + distance(detail_points[next_box], detail_points[destination_box])
                 queue.put((priority, next_box))
                 prev[next_box] = curr_box
 
