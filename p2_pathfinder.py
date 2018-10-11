@@ -34,6 +34,7 @@ def create_path(box, prev, points):
         p2 = points[prev_box]
         path.append((p1, p2))
         curr_box = prev_box
+
     return path
 
 def find_path (source_point, destination_point, mesh):
@@ -86,6 +87,7 @@ def find_path (source_point, destination_point, mesh):
             if direction == 'fwd':
                 if next_box != source_box and next_box != destination_box:
                     fwd_detail_points[next_box] = midpoint(next_box)
+
                 new_dist = fwd_dist[curr_box] + distance(fwd_detail_points[curr_box], fwd_detail_points[next_box])
 
                 if next_box not in fwd_dist or new_dist < fwd_dist[next_box]:
@@ -97,6 +99,7 @@ def find_path (source_point, destination_point, mesh):
             else:
                 if next_box != source_box and next_box != destination_box:
                     bkwd_detail_points[next_box] = midpoint(next_box)
+                    
                 new_dist = bkwd_dist[curr_box] + distance(bkwd_detail_points[curr_box], bkwd_detail_points[next_box])
 
                 if next_box not in bkwd_dist or new_dist < bkwd_dist[next_box]:
