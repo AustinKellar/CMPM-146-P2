@@ -61,31 +61,57 @@ def find_path (source_point, destination_point, mesh):
         return [(source_point, destination_point)], [ source_box ]
 
     queue = PriorityQueue()
-    queue.put((0, source_box))
+    queue.put((0, source_box, destination_box, 'fwd'))
+    queue.put((0, destination_box, source_box, 'bkwd'))
 
-    dist = { source_box: 0 }
-    prev = { source_box: None }
+    fwd_dist = { source_box: 0 }
+    fwd_prev = { source_box: None }
 
-    detail_points = { source_box: source_point, destination_box: destination_point }
+    bkwd_dist = { destination_box: 0}
+    bkwd_prev = { destination_box: None }
+
+    fwd_detail_points = { source_box: source_point, destination_box: destination_point }
+    bkwd_detail_points = { source_box: source_point, destination_box: destination_point }
+
+    fwd_closed = []
+    bkwd_closed = []
 
     while not queue.empty():
-        _,curr_box = queue.get()
+        weight, curr_box, curr_goal, direction = queue.get()
 
-        if curr_box == destination_box:
+        if (direction == 'fwd' and curr_box in bkwd_closed) or (direction == 'bkwd' and curr_box in fwd_closed):
             break
 
         for next_box in mesh['adj'][curr_box]:
-            if next_box != source_box and next_box != destination_box:
-                detail_points[next_box] = midpoint(next_box)
+            if direction == 'fwd':
+                if next_box != source_box and next_box != destination_box:
+                    fwd_detail_points[next_box] = midpoint(next_box)
+                new_dist = fwd_dist[curr_box] + distance(fwd_detail_points[curr_box], fwd_detail_points[next_box])
 
-            new_dist = dist[curr_box] + distance(detail_points[curr_box], detail_points[next_box])
+                if next_box not in fwd_dist or new_dist < fwd_dist[next_box]:
+                    fwd_dist[next_box] = new_dist
+                    priority = new_dist + distance(fwd_detail_points[next_box], fwd_detail_points[destination_box])
+                    queue.put((priority, next_box, destination_box, 'fwd'))
+                    fwd_prev[next_box] = curr_box
+                    fwd_closed.append(curr_box)
+            else:
+                if next_box != source_box and next_box != destination_box:
+                    bkwd_detail_points[next_box] = midpoint(next_box)
+                new_dist = bkwd_dist[curr_box] + distance(bkwd_detail_points[curr_box], bkwd_detail_points[next_box])
 
-            if next_box not in dist or new_dist < dist[next_box]:
-                dist[next_box] = new_dist
-                priority = new_dist + distance(detail_points[next_box], detail_points[destination_box])
-                queue.put((priority, next_box))
-                prev[next_box] = curr_box
+                if next_box not in bkwd_dist or new_dist < bkwd_dist[next_box]:
+                    bkwd_dist[next_box] = new_dist
+                    priority = new_dist + distance(bkwd_detail_points[next_box], bkwd_detail_points[source_box])
+                    queue.put((priority, next_box, source_box, 'bkwd'))
+                    bkwd_prev[next_box] = curr_box
+                    bkwd_closed.append(curr_box)
 
-    path = create_path(destination_box, prev, detail_points)
+    boxes = fwd_dist
+    boxes.update(bkwd_dist)
 
-    return path, dist.keys()
+    fwd_path = create_path(curr_box, fwd_prev, fwd_detail_points)
+    bkwd_path = create_path(curr_box, bkwd_prev, bkwd_detail_points)
+
+    path = fwd_path + bkwd_path
+
+    return path, boxes.keys()
