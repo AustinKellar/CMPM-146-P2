@@ -68,10 +68,12 @@ def find_path (source_point, destination_point, mesh):
 
     while not queue.empty():
         _,curr_box = queue.get()
+
         if curr_box == destination_box:
             break
+
         for next_box in mesh['adj'][curr_box]:
-            if next_box not in detail_points:
+            if next_box != source_box and next_box != destination_box:
                 detail_points[next_box] = midpoint(next_box)
 
             new_dist = dist[curr_box] + distance(detail_points[curr_box], detail_points[next_box])
