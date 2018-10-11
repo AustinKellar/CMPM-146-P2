@@ -24,14 +24,16 @@ def distance(point1, point2):
 
     return sqrt(((x2 - x1)**2) + ((y2 - y1)**2))
 
-def assemble_path(source_box, destination_box, detail_points, prev):
+def create_path(box, prev, points):
     path = []
-    curr_box = destination_box
+    curr_box = box
 
-    while curr_box != source_box:
-        path.append((detail_points[curr_box], detail_points[prev[curr_box]]))
-        curr_box = prev[curr_box]
-
+    while prev[curr_box] != None:
+        prev_box = prev[curr_box]
+        p1 = points[curr_box]
+        p2 = points[prev_box]
+        path.append((p1, p2))
+        curr_box = prev_box
     return path
 
 def find_path (source_point, destination_point, mesh):
@@ -62,7 +64,7 @@ def find_path (source_point, destination_point, mesh):
     queue.put((0, source_box))
 
     dist = { source_box: 0 }
-    prev = { source_point: None }
+    prev = { source_box: None }
 
     detail_points = { source_box: source_point, destination_box: destination_point }
 
@@ -84,6 +86,6 @@ def find_path (source_point, destination_point, mesh):
                 queue.put((priority, next_box))
                 prev[next_box] = curr_box
 
-    path = assemble_path(source_box, destination_box, detail_points, prev)
+    path = create_path(destination_box, prev, detail_points)
 
     return path, dist.keys()
