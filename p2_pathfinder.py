@@ -155,7 +155,7 @@ def find_path (source_point, destination_point, mesh):
         for next_box in mesh['adj'][curr_box]:
             if direction == 'fwd':
                 if next_box != source_box and next_box != destination_box:
-                    fwd_detail_points[next_box] = midpoint(next_box)
+                    fwd_detail_points[next_box] = closest(curr_box, next_box, fwd_detail_points[curr_box])
 
                 new_dist = fwd_dist[curr_box] + distance(fwd_detail_points[curr_box], fwd_detail_points[next_box])
 
@@ -167,7 +167,7 @@ def find_path (source_point, destination_point, mesh):
                     fwd_closed.append(curr_box)
             else:
                 if next_box != source_box and next_box != destination_box:
-                    bkwd_detail_points[next_box] = midpoint(next_box)
+                    bkwd_detail_points[next_box] = closest(curr_box, next_box, bkwd_detail_points[curr_box])
                     
                 new_dist = bkwd_dist[curr_box] + distance(bkwd_detail_points[curr_box], bkwd_detail_points[next_box])
 
