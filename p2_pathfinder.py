@@ -25,17 +25,19 @@ def distance(point1, point2):
 
     return sqrt(((x2 - x1)**2) + ((y2 - y1)**2))
 
-def assemble_path(source_point, destination_point, parents):
-    print("in assemble path")
+def create_path(box, prev, points):
     path = []
-    current = destination_point
+    curr_box = box
 
-    while current != source_point:
-        #print("current point in path: " +str(current))
-        path.append(((current), (parents[current])))
-        current = parents[current]
-    #print("returning path")
+    while prev[curr_box] != None:
+        prev_box = prev[curr_box]
+        p1 = points[curr_box]
+        p2 = points[prev_box]
+        path.append((p1, p2))
+        curr_box = prev_box
+
     return path
+
 
 def calculate_x(cur1, cur2, next1, next2, current_point):
     #print("in calc x")
@@ -103,7 +105,7 @@ def closest(current_box, next_box, current_point):
     #print("returning point: " + str(new_point) + " next: " + str(next_box))
     return new_point
     
-
+    
 def find_path (source_point, destination_point, mesh):
 
     """
@@ -129,50 +131,59 @@ def find_path (source_point, destination_point, mesh):
         return [(source_point, destination_point)], [ source_box ]
 
     queue = PriorityQueue()
-    queue.put((0, source_box))
-    boxes = {}
-    boxes[source_box] = None
-    distances = { source_box: 0 }
-    detail_points = { source_box: source_point }
-    parents = { source_point: None }
+    queue.put((0, source_box, destination_box, 'fwd'))
+    queue.put((0, destination_box, source_box, 'bkwd'))
 
+    fwd_dist = { source_box: 0 }
+    fwd_prev = { source_box: None }
+
+    bkwd_dist = { destination_box: 0}
+    bkwd_prev = { destination_box: None }
+
+    fwd_detail_points = { source_box: source_point, destination_box: destination_point }
+    bkwd_detail_points = { source_box: source_point, destination_box: destination_point }
+
+    fwd_closed = []
+    bkwd_closed = []
 
     while not queue.empty():
-        current = (queue.get())[1]
-        if current == destination_box:
-            #parents[destination_point] = detail_points[current]
+        weight, curr_box, curr_goal, direction = queue.get()
+
+        if (direction == 'fwd' and curr_box in bkwd_closed) or (direction == 'bkwd' and curr_box in fwd_closed):
             break
-        #print(len(mesh['adj'][current]))
-        print("checking adj")
-        #print("current: " + str(current))
-        for next in mesh['adj'][current]:
-            if next == destination_box:
-                detail_point = destination_point
+
+        for next_box in mesh['adj'][curr_box]:
+            if direction == 'fwd':
+                if next_box != source_box and next_box != destination_box:
+                    fwd_detail_points[next_box] = midpoint(next_box)
+
+                new_dist = fwd_dist[curr_box] + distance(fwd_detail_points[curr_box], fwd_detail_points[next_box])
+
+                if next_box not in fwd_dist or new_dist < fwd_dist[next_box]:
+                    fwd_dist[next_box] = new_dist
+                    priority = new_dist + distance(fwd_detail_points[next_box], fwd_detail_points[destination_box])
+                    queue.put((priority, next_box, destination_box, 'fwd'))
+                    fwd_prev[next_box] = curr_box
+                    fwd_closed.append(curr_box)
             else:
-                detail_point = closest(current, next, detail_points[current])
-            #print("detail_point: " + str(detail_point)+ " next: " + str(next))
+                if next_box != source_box and next_box != destination_box:
+                    bkwd_detail_points[next_box] = midpoint(next_box)
+                    
+                new_dist = bkwd_dist[curr_box] + distance(bkwd_detail_points[curr_box], bkwd_detail_points[next_box])
 
-            detail_points[next] = detail_point
+                if next_box not in bkwd_dist or new_dist < bkwd_dist[next_box]:
+                    bkwd_dist[next_box] = new_dist
+                    priority = new_dist + distance(bkwd_detail_points[next_box], bkwd_detail_points[source_box])
+                    queue.put((priority, next_box, source_box, 'bkwd'))
+                    bkwd_prev[next_box] = curr_box
+                    bkwd_closed.append(curr_box)
 
-            new_distance = distances[current] + distance(detail_points[current], detail_point)
+    boxes = fwd_dist
+    boxes.update(bkwd_dist)
 
-            if next not in distances or new_distance < distances[next]:
-                distances[next] = new_distance
-                priority = new_distance + heuristic(detail_point, destination_point)
-                queue.put((priority, next))
+    fwd_path = create_path(curr_box, fwd_prev, fwd_detail_points)
+    bkwd_path = create_path(curr_box, bkwd_prev, bkwd_detail_points)
 
-                if current == source_box:
-                    parents[detail_point] = source_point
-                else:
-                    parents[detail_point] = detail_points[current]
-
-                boxes[next] = current
-    print("done with queue")
-    #for parent,point in parents:
-        #print("current: "+str(point) + " parent: "+ str(parent))
-    #for point in detail_points:
-        #print(str(point))
-    path = assemble_path(source_point, destination_point, parents)
-    print("returning path")
+    path = fwd_path + bkwd_path
 
     return (path, boxes.keys())
