@@ -35,11 +35,6 @@ def create_path(box, prev, points):
 
     return path
 
-# this was our attempt at making always legal line segments (without midpoints)
-# but we did not manage to get it working in time. It still draws a path but looks
-# a little funky. If you want to test it, replace the call to midpoint() in find_path()
-# with a call to this function. We decided to submit with the midpoint because the path
-# consistently looks more correct
 def entrance_point(curr_point, b1, b2):
     px, py = curr_point
     b1x1, b1x2, b1y1, b1y2 = b1
