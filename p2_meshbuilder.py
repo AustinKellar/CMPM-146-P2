@@ -1,160 +1,140 @@
-import collections
-import pickle
-import sys
-import random
+from queue import PriorityQueue
+from math import inf, sqrt
 
-from matplotlib.pyplot import imread, imsave
-import numpy
-from numpy import zeros_like
-
-
-def build_mesh(image, min_feature_size):
-    def scan(box):
-
+#REMEMBER x1,y1 = top left x2,y2 = bottom right
+def matching_box(point, mesh):
+    x, y = point
+    for box in mesh['boxes']:
         x1, x2, y1, y2 = box
-        area = (x2 - x1) * (y2 - y1)
+        if y <= y2 and y >= y1 and x >= x1 and x <= x2:
+            return box
 
-        if area < min_feature_size or (image[x1:x2, y1:y2] == 255).all() or (image[x1:x2, y1:y2] == 0).all():
+def midpoint(box):
+    x1, x2, y1, y2 = box
+    return ((x1+x2)/2, (y1+y2)/2)
 
-            # this box is simple enough to handle in one node
-            if (image[x1:x2, y1:y2] == 255).all():
-                return [box], []
-            else:
-                return [], []
+def heuristic(point1, point2):
+    return distance(point1, point2)
 
-        else:
+def distance(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
 
-            # recursively split this big box on the longest dimension
-            if x2 - x1 > y2 - y1:
+    return sqrt(((x2 - x1)**2) + ((y2 - y1)**2))
 
-                cut = x1 + (x2 - x1) // 2 + 1
-                first_box = (x1, cut, y1, y2)
-                second_box = (cut, x2, y1, y2)
+def create_path(box, prev, points):
+    path = []
+    curr_box = box
 
-                def rank(b): return (b[2], b[3])
+    while prev[curr_box] != None:
+        prev_box = prev[curr_box]
+        p1 = points[curr_box]
+        p2 = points[prev_box]
+        path.append((p1, p2))
+        curr_box = prev_box
 
-                def first_touch(b): return b[1] == cut
+    return path
 
-                def second_touch(b): return b[0] == cut
+def entrance_point(curr_point, b1, b2):
+    px, py = curr_point
+    b1x1, b1x2, b1y1, b1y2 = b1
+    b2x1, b2x2, b2y1, b2y2 = b2
 
-            else:
+    lx = max(b1x1, b2x1) # right bound
+    ux = min(b1x2, b2x2) # left bound
 
-                cut = y1 + (y2 - y1) // 2 + 1
-                first_box = (x1, x2, y1, cut)
-                second_box = (x1, x2, cut, y2)
+    ly = max(b1y1, b2y1) # top bound (lowest y value)
+    uy = min(b1y2, b2y2) # bottom bound (highest y value)
 
-                def rank(b): return (b[0], b[1])
-
-                def first_touch(b): return b[3] == cut
-
-                def second_touch(b): return b[2] == cut
-
-            first_boxes, first_edges = scan(first_box)
-            second_boxes, second_edges = scan(second_box)
-
-            my_boxes = []
-            my_edges = []
-
-            my_boxes.extend([fb for fb in first_boxes if not first_touch(fb)])
-            my_boxes.extend(
-                [sb for sb in second_boxes if not second_touch(sb)])
-
-            first_touches = sorted(filter(first_touch, first_boxes), key=rank)
-            second_touches = sorted(
-                filter(second_touch, second_boxes), key=rank)
-
-            first_merges = {}
-            second_merges = {}
-
-            while first_touches and second_touches:
-
-                f, s = first_touches[0], second_touches[0]
-                rf, rs = rank(f), rank(s)
-
-                if rf == rs:
-
-                    first_touches.pop(0)
-                    second_touches.pop(0)
-                    merged = (f[0], s[1], f[2], s[3])
-                    first_merges[f] = merged
-                    second_merges[s] = merged
-                    my_boxes.append(merged)
-
-                elif rf[1] < rs[1]:
-
-                    my_boxes.append(first_touches.pop(0))
-                    if rf[1] >= rs[0]:
-                        my_edges.append((f, s))
-
-                elif rf[1] > rs[1]:
-
-                    my_boxes.append(second_touches.pop(0))
-                    if rf[0] <= rs[1]:
-                        my_edges.append((f, s))
-
-                else:
-
-                    my_boxes.append(first_touches.pop(0))
-                    my_boxes.append(second_touches.pop(0))
-                    my_edges.append((f, s))
-
-            my_boxes.extend(first_touches)
-            my_boxes.extend(second_touches)
-
-            for a, b in first_edges:
-                my_edges.append(
-                    (first_merges.get(a, a), first_merges.get(b, b)))
-
-            for a, b in second_edges:
-                my_edges.append(
-                    (second_merges.get(a, a), second_merges.get(b, b)))
-
-            return my_boxes, my_edges
-
-            # end of scan
-
-    boxes, edges = scan((0, image.shape[0], 0, image.shape[1]))
-
-    adj = collections.defaultdict(list)
-    for a, b in edges:
-        adj[a].append(b)
-        adj[b].append(a)
-
-    mesh = {'boxes': list(adj.keys()), 'adj': dict(adj)}
-
-    return mesh
-
-
-if __name__ == '__main__':
-
-    min_feature_size = 16
-    filename = None
-
-    if len(sys.argv) == 2:
-        filename = sys.argv[1]
-    elif len(sys.argv) == 3:
-        filename = sys.argv[1]
-        min_feature_size = int(sys.argv[2])
+    if px < lx:
+        x = lx
+    elif px > ux:
+        x = ux
     else:
-        print("usage: %s map_filename min_feature_size" % sys.argv[0])
-        sys.exit(-1)
+        x = px
 
-    img = (imread(filename) * 255).astype(dtype=numpy.uint8)
-    if len(img.shape) > 2:
-        img = img[:, :, 0]
+    if py < ly:
+        y = ly
+    elif py > uy:
+        y = uy
+    else:
+        y = py
 
-    mesh = build_mesh(img, min_feature_size)
+    return (x, y)
+    
+def find_path (source_point, destination_point, mesh):
 
-    print(type(mesh))
-    print(mesh.keys())
+    """
+    Searches for a path from source_point to destination_point through the mesh
+    Args:
+        source_point: starting point of the pathfinder
+        destination_point: the ultimate goal the pathfinder must reach
+        mesh: pathway constraints the path adheres to
+    Returns:
+        A path (list of points) from source_point to destination_point if exists
+        A list of boxes explored by the algorithm
+    """
+    source_box = matching_box(source_point, mesh)
+    destination_box = matching_box(destination_point, mesh)
 
-    with open(filename + '.mesh.pickle', 'wb') as f:
-        pickle.dump(mesh, f, protocol=pickle.HIGHEST_PROTOCOL)
+    if source_box == destination_box:
+        return [(source_point, destination_point)], [ source_box ]
 
-    atlas = zeros_like(img)
-    for x1, x2, y1, y2 in mesh['boxes']:
-        atlas[x1:x2, y1:y2] = random.randint(64, 255)
+    queue = PriorityQueue()
+    queue.put((0, source_box, destination_box, 'fwd'))
+    queue.put((0, destination_box, source_box, 'bkwd'))
 
-    imsave(filename + '.mesh.png', atlas)
+    fwd_dist = { source_box: 0 }
+    fwd_prev = { source_box: None }
 
-    print("Built a mesh with %d boxes." % len(mesh['boxes']))
+    bkwd_dist = { destination_box: 0}
+    bkwd_prev = { destination_box: None }
+
+    fwd_detail_points = { source_box: source_point, destination_box: destination_point }
+    bkwd_detail_points = { source_box: source_point, destination_box: destination_point }
+
+    fwd_closed = []
+    bkwd_closed = []
+
+    while not queue.empty():
+        weight, curr_box, curr_goal, direction = queue.get()
+
+        if (direction == 'fwd' and curr_box in bkwd_closed) or (direction == 'bkwd' and curr_box in fwd_closed):
+            break
+
+        for next_box in mesh['adj'][curr_box]:
+            if direction == 'fwd':
+                if next_box != source_box and next_box != destination_box:
+                    fwd_detail_points[next_box] = entrance_point(fwd_detail_points[curr_box], curr_box, next_box)
+
+                new_dist = fwd_dist[curr_box] + distance(midpoint(curr_box), midpoint(next_box))
+
+                if next_box not in fwd_dist or new_dist < fwd_dist[next_box]:
+                    fwd_dist[next_box] = new_dist
+                    priority = new_dist + heuristic(midpoint(next_box), fwd_detail_points[destination_box])
+                    queue.put((priority, next_box, destination_box, 'fwd'))
+                    fwd_prev[next_box] = curr_box
+                    fwd_closed.append(curr_box)
+            else:
+                if next_box != source_box and next_box != destination_box:
+                    bkwd_detail_points[next_box] = entrance_point(bkwd_detail_points[curr_box], curr_box, next_box)
+                    
+                new_dist = bkwd_dist[curr_box] + distance(midpoint(curr_box), midpoint(next_box))
+
+                if next_box not in bkwd_dist or new_dist < bkwd_dist[next_box]:
+                    bkwd_dist[next_box] = new_dist
+                    priority = new_dist + heuristic(midpoint(next_box), bkwd_detail_points[source_box])
+                    queue.put((priority, next_box, source_box, 'bkwd'))
+                    bkwd_prev[next_box] = curr_box
+                    bkwd_closed.append(curr_box)
+
+    boxes = fwd_dist
+    boxes.update(bkwd_dist)
+
+    fwd_path = create_path(curr_box, fwd_prev, fwd_detail_points)
+    bkwd_path = create_path(curr_box, bkwd_prev, bkwd_detail_points)
+
+    path = fwd_path + bkwd_path
+    path.append((fwd_path[0][0], bkwd_path[0][0]))
+
+    return (path, boxes.keys())
