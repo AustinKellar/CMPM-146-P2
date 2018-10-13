@@ -1,3 +1,5 @@
+# Group: Austin Kellar, Josh Clouse
+
 from queue import PriorityQueue
 from math import inf, sqrt
 
